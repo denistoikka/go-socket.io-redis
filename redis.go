@@ -163,34 +163,33 @@ func (b broadcast) Leave(room string, socket socketio.Socket) error {
 // Same as Broadcast
 func (b broadcast) Send(ignore socketio.Socket, room, message string, args ...interface{}) error {
   sockets, ok := b.rooms.Get(room)
-  if !ok {
-    return nil
-  }
-  for item := range sockets.Iter() {
-    id := item.Key
-    s := item.Val
-    if ignore != nil && ignore.Id() == id {
-      continue
+  if ok {
+    for item := range sockets.Iter() {
+      id := item.Key
+      s := item.Val
+      if ignore != nil && ignore.Id() == id {
+        continue
+      }
+      err := (s.Emit(message, args...))
+      if err != nil {
+        log.Println("error broadcasting:", err)
+      }
     }
-    err := (s.Emit(message, args...))
-    if err != nil {
-      log.Println("error broadcasting:", err)
-    }
   }
-
-  opts := make([]interface{}, 3)
-  opts[0] = ignore
-  opts[1] = room
-  opts[2] = message
-  in := map[string][]interface{}{
-    "args": args,
-    "opts": opts,
-  }
-
-  buf, err := json.Marshal(in)
-  _ = err
 
   if !b.remote {
+    opts := make([]interface{}, 3)
+    opts[0] = ignore
+    opts[1] = room
+    opts[2] = message
+    in := map[string][]interface{}{
+      "args": args,
+      "opts": opts,
+    }
+
+    buf, err := json.Marshal(in)
+    _ = err
+
     b.pub.Conn.Do("PUBLISH", b.key, buf)
   }
   b.remote = false
